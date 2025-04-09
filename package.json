@@ -1,0 +1,27 @@
+{
+  "name": "uniconnect-server",
+  "version": "1.0.0",
+  "description": "Serve as a backend for Uniconnect App",
+  "homepage": "https://github.com/DEEPAK-KUMAR-VERMA-GITHUB/Uniconnect-backend#readme",
+  "bugs": {
+    "url": "https://github.com/DEEPAK-KUMAR-VERMA-GITHUB/Uniconnect-backend/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DEEPAK-KUMAR-VERMA-GITHUB/Uniconnect-backend.git"
+  },
+  "license": "ISC",
+  "author": "Pallavi",
+  "type": "module",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "dev": "nodemon app.js"
+  },
+  "dependencies": {
+    "fastify": "^5.2.2"
+  },
+  "devDependencies": {
+    "dotenv": "^16.4.7"
+  }
+}
