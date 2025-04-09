@@ -1,10 +1,13 @@
 import Fastify from "fastify";
 import "dotenv/config";
+import initializeDB from "./config/db.config.js";
 
 const createServer = async () => {
   const fastify = Fastify({
     logger: true,
   });
+
+  await initializeDB();
 
   fastify.get("/", async (request, reply) => {
     return reply.code(200).send({

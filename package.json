@@ -19,7 +19,8 @@
     "dev": "nodemon app.js"
   },
   "dependencies": {
-    "fastify": "^5.2.2"
+    "fastify": "^5.2.2",
+    "mongoose": "^8.13.2"
   },
   "devDependencies": {
     "dotenv": "^16.4.7"
