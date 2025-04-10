@@ -1,11 +1,13 @@
 import mongoose from "mongoose";
-import 'dotenv/config'
+import "dotenv/config";
 
 const initializeDB = async () => {
   try {
     const connectionRef = await mongoose.connect(process.env.MONGODB_URI, {
       serverSelectionTimeoutMS: 5000,
       socketTimeoutMS: 45000,
+      maxPoolSize: 10,
+      minPoolSize: 2,
     });
 
     console.log(
