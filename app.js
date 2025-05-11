@@ -1,6 +1,16 @@
-import Fastify from "fastify";
 import "dotenv/config";
+import cookie from "@fastify/cookie";
+import cors from "@fastify/cors";
+import Fastify from "fastify";
+import multipart from "@fastify/multipart";
 import initializeDB from "./config/db.config.js";
+import { errorHandler, notFound } from "./middlewares/error.middleware.js";
+import { departmentRoutes } from "./routes/department.route.js";
+import { subjectRoute } from "./routes/subject.route.js";
+import { userRoutes } from "./routes/user.route.js";
+import { courseRoutes } from "./routes/course.route.js";
+import { sessionRoute } from "./routes/session.route.js";
+import { semesterRoutes } from "./routes/semester.route.js";
 
 const createServer = async () => {
   const fastify = Fastify({
@@ -8,13 +18,29 @@ const createServer = async () => {
   });
 
   await initializeDB();
-
-  fastify.get("/", async (request, reply) => {
-    return reply.code(200).send({
-      success: "true",
-      message: "Welcome to Uniconnect server",
-    });
+  await fastify.register(cors, {
+    origin: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    credentials: true,
   });
+  await fastify.register(cookie);
+  await fastify.register(multipart, {
+    limits: {
+      fileSize: 10000000, // 10MB
+      files: 1, // 1 file
+    },
+    attachFieldsToBody: true,
+  });
+
+  await fastify.register(userRoutes, { prefix: "/api/v1/users" });
+  await fastify.register(departmentRoutes, { prefix: "/api/v1/departments" });
+  await fastify.register(courseRoutes, { prefix: "/api/v1/courses" });
+  await fastify.register(sessionRoute, { prefix: "/api/v1/sessions" });
+  await fastify.register(semesterRoutes, { prefix: "/api/v1/semesters" });
+  await fastify.register(subjectRoute, { prefix: "/api/v1/subjects" });
+
+  fastify.setErrorHandler(errorHandler);
+  fastify.setNotFoundHandler(notFound);
 
   return fastify;
 };
@@ -24,7 +50,7 @@ const startServer = async () => {
     const app = await createServer();
     app.listen({ port: process.env.PORT }, () => {
       console.log(
-        `✅ Uniconnect server is running on port ${process.env.PORT}`
+        `✅ Uniconnect server is running on port ${app.server.address().port}`
       );
     });
   } catch (error) {

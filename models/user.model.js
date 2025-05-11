@@ -74,6 +74,10 @@ const userSchema = new mongoose.Schema(
       index: true, // index for role-based queries
     },
 
+    profilePic: {
+      type: String,
+    },
+
     // Common fields for both faculty and students
     department: {
       type: mongoose.Schema.Types.ObjectId,
@@ -99,8 +103,12 @@ const userSchema = new mongoose.Schema(
 
     designation: {
       type: String,
-      enum: ["Associate Professor", "Assistant Professor", "Lecturer"],
+      enum: ["Associate Professor", "Assistant Professor", "Professor"],
       sparse: true, // Sparse index for faculty-only field
+      index: true,
+      required: function () {
+        return this.role === "faculty";
+      },
     },
 
     // Student-specific fields
@@ -122,21 +130,55 @@ const userSchema = new mongoose.Schema(
     associations: {
       // For faculty: courses they teach
       // For students: their course, session, semester
-      course: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Course",
-        sparse: true,
-      },
-      session: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Session",
-        sparse: true,
-      },
-      semester: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Semester",
-        sparse: true,
-      },
+      courses: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Course",
+          sparse: true,
+          validate: {
+            validator: function (courses) {
+              if (this.role !== "student") return true;
+              return courses.length <= 1;
+            },
+            message: "Students can only be associated with one course",
+          },
+        },
+      ],
+      sessions: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Session",
+          sparse: true,
+          validate: {
+            validator: function (sessions) {
+              if (this.role !== "student") return true;
+              return sessions.length <= 1;
+            },
+            message: "Students can only be associated with one course",
+          },
+        },
+      ],
+      semesters: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Semester",
+          sparse: true,
+          validate: {
+            validator: function (semesters) {
+              if (this.role !== "student") return true;
+              return semesters.length <= 1;
+            },
+            message: "Students can only be associated with one course",
+          },
+        },
+      ],
+      subjects: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Subject",
+          sparse: true,
+        },
+      ],
     },
 
     // Faculty-specific arrays
@@ -173,6 +215,10 @@ const userSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    tokenVersion: {
+      type: Number,
+      default: 0,
+    },
 
     resetPasswordToken: String,
     resetPasswordExpire: Date,
@@ -184,7 +230,20 @@ const userSchema = new mongoose.Schema(
     loginAttempts: {
       count: { type: Number, default: 0 },
       lastAttempt: { type: Date },
+      lockUntil: { type: Date },
     },
+
+    device: {
+      deviceToken: {
+        type: String,
+        default: null,
+      },
+      platform: {
+        type: String,
+        default: null,
+      },
+    },
+
     // Timestamps
     createdAt: {
       type: Date,
@@ -209,15 +268,6 @@ userSchema.index({ role: 1, department: 1 });
 userSchema.index({ role: 1, "associations.course": 1 });
 userSchema.index({ role: 1, isVerified: 1, isBlocked: 1 });
 
-// Virtual fields
-userSchema.virtual("isStudent").get(function () {
-  return this.role === "student";
-});
-
-userSchema.virtual("isFaculty").get(function () {
-  return this.role === "faculty";
-});
-
 // Middleware for role-based validation
 userSchema.pre("validate", function (next) {
   if (this.role === "faculty" && !this.facultyId) {
@@ -230,15 +280,9 @@ userSchema.pre("validate", function (next) {
 });
 
 // Password hashing middleware
-userSchema.pre("save", async function (next) {
-  if (!this.isModified("password")) {
-    return next();
-  }
-  try {
+userSchema.pre("save", async function () {
+  if (this.isModified("password")) {
     this.password = await bcrypt.hash(this.password, 12);
-    next();
-  } catch (error) {
-    next(error);
   }
 });
 
@@ -272,7 +316,7 @@ userSchema.methods = {
       },
       process.env.JWT_SECRET,
       {
-        expiresIn: process.env.JWT_EXPIRES,
+        expiresIn: parseInt(process.env.JWT_EXPIRES) * 24 * 60 * 60 * 1000,
       }
     );
 
@@ -280,7 +324,8 @@ userSchema.methods = {
       { id: this._id, role: this.role },
       process.env.JWT_REFRESH_SECRET,
       {
-        expiresIn: process.env.JWT_REFRESH_EXPIRES,
+        expiresIn:
+          parseInt(process.env.JWT_REFRESH_EXPIRES) * 24 * 60 * 60 * 1000,
       }
     );
 
@@ -291,7 +336,7 @@ userSchema.methods = {
   updateLoginAttempts: async function () {
     this.loginAttempts.count += 1;
     this.loginAttempts.lastAttempt = new Date();
-    await this.save();
+    await this.save({ validateBeforeSave: false });
   },
 
   // Reset login attempts
@@ -299,7 +344,7 @@ userSchema.methods = {
     this.loginAttempts.count = 0;
     this.loginAttempts.lastAttempt = null;
     this.lastLogin = new Date();
-    await this.save();
+    await this.save({ validateBeforeSave: false });
   },
 };
 
