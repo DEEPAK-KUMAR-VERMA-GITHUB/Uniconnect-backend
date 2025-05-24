@@ -121,10 +121,29 @@ class SubjectController {
     try {
       const { id } = request.params;
 
-      const subject = await Subject.findById(id).populate(
-        "createdBy",
-        "name email"
-      );
+      // get subject and populate everything
+      const subject = await Subject.findById(id)
+        .populate("semester", "name")
+        .populate("course", "name")
+        .populate("department", "name")
+        .populate("faculty", "name email profilePic")
+        .populate({
+          path: "assignments",
+          populate: [
+            {
+              path: "createdBy",
+              select: "name email profilePic",
+            },
+            {
+              path: "resources",
+              select: "name url",
+            },
+          ],
+        })
+        .populate({
+          path: "resources",
+          select: "name url",
+        });
 
       if (!subject) {
         return ApiError.notFound("Subject not found or Invalid Subject ID");
@@ -196,16 +215,26 @@ class SubjectController {
     try {
       const { id } = request.params;
 
-      const subject = await Subject.findById(id)
-        .populate("semester", "subjects")
-        .populate("faculty", "associations");
+      const subject = await Subject.findById(id).populate(
+        "faculty",
+        "associations"
+      );
 
       if (!subject) {
         return ApiError.notFound("Subject not found or Invalid Subject ID");
       }
 
       // remove subject from the semester
-      await subject.semester?.subjects.pull(subject._id);
+      if (subject.semesters) {
+        // remove subject from all the semesters
+        subject.semesters.forEach(async (semester) => {
+          const semesterData = await Semester.findById(semester);
+          if (semesterData) {
+            semesterData.subjects.pull(subject._id);
+            await semesterData.save();
+          }
+        });
+      }
 
       // remove subject from faculty associations
       await subject.faculty?.associations?.courses.pull(subject._id);
@@ -262,7 +291,7 @@ class SubjectController {
       const { id } = request.params;
       const { facultyId } = request.body;
 
-      const subject = await Subject.findById(id);
+      const subject = await Subject.find({ _id: id, status: "ACTIVE" });
 
       if (!subject) {
         return ApiError.notFound("Subject not found or Invalid Subject ID");
@@ -277,14 +306,20 @@ class SubjectController {
       // Remove existing faculty if any
       if (subject.faculty) {
         const existingFaculty = await User.findById(subject.faculty);
-        if (existingFaculty) {
-          existingFaculty.associations.courses.pull(subject._id);
+        if (existingFaculty._id === subject.faculty) {
+          return ApiError.conflict("Subject already assigned to this faculty");
+        } else {
+          existingFaculty.associations.subjects.pull(subject._id);
           await existingFaculty.save();
         }
       }
 
+      // check if the subject is already associated with the faculty
+
+      faculty.associations.courses.push(subject.course);
+      faculty.associations.sessions.push(subject.session);
+      faculty.associations.subjects.push(subject._id);
       subject.faculty = facultyId;
-      faculty.associations.courses.push(subject._id);
 
       await subject.save();
       await faculty.save();
@@ -372,17 +407,14 @@ class SubjectController {
         );
       }
 
-      // TODO : upload file to cloudinary and get the file url
-      const { public_id } = await CloudinaryService.uploadResource(
-        file,
-        type.value
-      );
+      // upload file to cloudinary and get the file url
+      const { url } = await CloudinaryService.uploadResource(file, type.value);
 
       const resource = await Resource.create({
         title: title.value,
         type: type.value,
         year: year?.value,
-        fileUrl: public_id,
+        fileUrl: url,
         uploadedBy: request.user._id,
         subject: subject._id,
       });
@@ -390,6 +422,23 @@ class SubjectController {
       // add newly created resource to subject
       subject.resources.push(resource._id);
       await subject.save();
+
+      // add resources to associate users which contains that subject
+      const users = await User.find({
+        "associations.subjects": subject._id,
+      });
+
+      if (resource.type === "note") {
+        users.forEach(async (user) => {
+          user.teachingAssignments.notes.push(resource.id);
+          await user.save();
+        });
+      } else {
+        users.forEach(async (user) => {
+          user.teachingAssignments.pyqs.push(resource.id);
+          await user.save();
+        });
+      }
 
       return ApiResponse.succeed(resource, "Resource added successfully");
     } catch (error) {
@@ -404,10 +453,10 @@ class SubjectController {
 
   async addAssignment(request, reply) {
     try {
-      const { id } = request.params;
+      const { subjectId } = request.params;
       const { file, title, dueDate } = request.body;
 
-      const subject = await Subject.findById(id);
+      const subject = await Subject.findById(subjectId);
       if (!subject) {
         return ApiError.notFound("Subject not found or Invalid Subject ID");
       }
@@ -420,7 +469,7 @@ class SubjectController {
       }
 
       // upload assignment to cloudinary and get file url
-      const { public_id } = await CloudinaryService.uploadResource(
+      const { url } = await CloudinaryService.uploadResource(
         file,
         "assignment"
       );
@@ -428,14 +477,26 @@ class SubjectController {
       const assignment = await Assignment.create({
         title: title.value,
         dueDate,
-        file: public_id,
+        file: url,
         subject: subject._id,
         assignedBy: request.user._id,
+        session: subject.session,
+        semester: subject.semester,
       });
 
       // add newly created assignment to subject
       subject.assignments.push(assignment._id);
       await subject.save();
+
+      // add assignment to associate users which contains that subject
+      const users = await User.find({
+        "associations.subjects": subject._id,
+      });
+
+      users.forEach(async (user) => {
+        user.teachingAssignments.assignments.push(assignment.id);
+        await user.save();
+      });
 
       return ApiResponse.succeed(assignment, "Assignment added successfully");
     } catch (error) {
@@ -449,10 +510,9 @@ class SubjectController {
    */
   async removeResource(request, reply) {
     try {
-      const { id } = request.params;
-      const { resourceId } = request.body;
+      const { subjectId, resourceId } = request.params;
 
-      const subject = await Subject.findById(id);
+      const subject = await Subject.findById(subjectId);
       if (!subject) {
         return ApiError.notFound("Subject not found or Invalid Subject ID");
       }
@@ -482,12 +542,26 @@ class SubjectController {
         (resource) => resource.toString() !== resourceId
       );
 
+      // remove resource from associate users which contains that subject
+      const users = await User.find({
+        "associations.subjects": subject._id,
+      });
+      if (resource.type === "note") {
+        users.forEach(async (user) => {
+          user.teachingAssignments.notes.pull(resource.id);
+          await user.save();
+        });
+      } else {
+        users.forEach(async (user) => {
+          user.teachingAssignments.pyqs.pull(resource.id);
+          await user.save();
+        });
+      }
+
       await subject.save();
+      await Resource.findByIdAndDelete({ _id: resource.id });
 
-      // Remove the resource from the database
-      await resource.remove();
-
-      return ApiResponse.succeed({}, "Resource removed successfully");
+      return ApiResponse.succeed(null, "Resource removed successfully");
     } catch (error) {
       return ApiError.internal(error.message);
     }
@@ -514,8 +588,6 @@ class SubjectController {
         );
       }
 
-      // TODO : Remove assignment Submissions from database
-
       // remove assignment from cloudinary
       const result = await CloudinaryService.deleteResource(assignmentId);
       if (!result) {
@@ -527,12 +599,74 @@ class SubjectController {
         (assignment) => assignment.toString() !== assignmentId
       );
 
+      // remove assignment from associate users which contains that subject
+      const users = await User.find({
+        "associations.subjects": subject._id,
+      });
+
+      users.forEach(async (user) => {
+        user.teachingAssignments.assignments.pull(assignment.id);
+        await user.save();
+      });
+
       await subject.save();
 
       // Remove the assignment from the database
-      await assignment.remove();
+      await Assignment.findByIdAndDelete({ _id: assignmentId });
 
       return ApiResponse.succeed({}, "Assignment removed successfully");
+    } catch (error) {
+      return ApiError.internal(error.message);
+    }
+  }
+
+  /**
+   * @route /api/v1/subjects/:userId
+   * @access private
+   */
+
+  async getFacultySubjects(request, reply) {
+    try {
+      const { facultyId } = request.params;
+
+      const subjects = await Subject.find({ faculty: facultyId })
+        .populate("faculty", "fullName email profilePic")
+        .populate("semester", "semesterName")
+        .populate("course", "name")
+        .populate("session", "name startDate endDate")
+        .populate({
+          path: "resources",
+          select: "title type year fileUrl uploadedBy",
+          populate: {
+            path: "uploadedBy",
+            select: "name email profilePic",
+          },
+        })
+        .populate({
+          path: "assignments",
+          select: "title dueDate file assignedBy submissions",
+          populate: [
+            {
+              path: "assignedBy",
+              select: "fullName email profilePic",
+            },
+            {
+              path: "submissions",
+              select: "submittedBy submittedAt fileUrl grade feedback",
+              populate: {
+                path: "submittedBy",
+                select: "fullName email profilePic",
+              },
+            },
+          ],
+        })
+        .select("name code status");
+
+      if (!subjects || subjects.length === 0) {
+        return ApiError.notFound("No subjects found for this faculty");
+      }
+
+      return ApiResponse.succeed({ subjects }, "Subjects fetched successfully");
     } catch (error) {
       return ApiError.internal(error.message);
     }

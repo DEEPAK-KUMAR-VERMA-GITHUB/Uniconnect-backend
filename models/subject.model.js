@@ -27,6 +27,10 @@ const subjectSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Semester",
     },
+    session: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Session",
+    },
     department: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Department",

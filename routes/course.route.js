@@ -180,7 +180,7 @@ export const courseRoutes = (fastify, options) => {
     "/get-courses-by-department/:departmentId",
     {
       schema: courseSchema.getCourses,
-      preHandler: [auth, cacheMiddleware("department-courses")],
+      preHandler: [cacheMiddleware("department-courses")],
     },
     CourseController.getCoursesByDepartment
   );

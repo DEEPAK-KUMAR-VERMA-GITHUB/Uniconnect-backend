@@ -11,6 +11,9 @@ import { verifiedEmailTemplate } from "../mails/verified.template.js";
 import { blockedEmailTemplate } from "../mails/blocked.template.js";
 import { unblockedEmailTemplate } from "../mails/unblocked.template.js";
 import { ApiError } from "../utils/apiError.js";
+import Session from "../models/session.model.js";
+import Semester from "../models/semester.model.js";
+import Subject from "../models/subject.model.js";
 
 class UserController {
   /**
@@ -53,22 +56,26 @@ class UserController {
         return ApiError.notFound("Department not found");
       }
 
-      // validate if that course exists in that department or not
-      if (course) {
-        if (!departmentExists.courses.includes(course)) {
-          return ApiError.notFound("Course not found in department");
-        }
-      }
+      let subjects = [];
 
-      // check for the session in that course
-      if (session) {
-        const sessionExists = await Course.findOne({
-          _id: course,
-          sessions: session,
+      // validate if that course exists in that department or not
+      if (role === ROLES.STUDENT) {
+        // add all the subjects in that semester
+        const isSemesterActive = await Semester.findOne({
+          _id: semester,
+          status: "active",
         });
-        if (!sessionExists) {
-          return ApiError.notFound("Session not found in course");
+        if (!isSemesterActive) {
+          return ApiError.notFound("Semester is not active");
         }
+
+        // add all the subjects in that semester
+        const subjects = await Subject.find({
+          semester: semester,
+          course: course,
+          session: session,
+          department: department,
+        });
       }
 
       // create user based on role
@@ -83,6 +90,7 @@ class UserController {
           course,
           session,
           semester,
+          subjects,
         },
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -188,13 +196,7 @@ class UserController {
 
       return ApiResponse.succeed(
         {
-          user: {
-            _id: user._id,
-            fullName: user.fullName,
-            email: user.email,
-            role: user.role,
-            department: user.department,
-          },
+          user,
           accessToken,
           refreshToken,
         },
@@ -213,11 +215,17 @@ class UserController {
 
   async getUserProfile(request, reply) {
     try {
-      const user = await User.findById(request.user._id).populate(
-        "department",
-        "name, code"
-      );
+      // console.log('here1');
 
+      const user = await User.findById(request.user._id)
+        .populate("department", "name")
+        .populate("associations.courses")
+        .populate("associations.sessions")
+        .populate("associations.semesters")
+        .populate("associations.subjects")
+        .populate("teachingAssignments");
+
+      // console.log('here2', user);
       if (!user) {
         return new ApiError(StatusCode.NOT_FOUND, "User not found");
       }
@@ -249,18 +257,14 @@ class UserController {
       // validate department
       const departmentExists = await Department.findById(updates.department);
       if (!departmentExists) {
-        return new ApiError(StatusCode.NOT_FOUND, "Department not found");
+        return ApiError.notFound("Department not found");
       }
 
       // check if user exists
-      const user = await User.findByIdAndUpdate(
-        userId,
-        { $set: updates },
-        { new: true, runValidators: true }
-      );
+      const user = await User.findById(userId);
 
       if (!user) {
-        return new ApiError(StatusCode.NOT_FOUND, "User not found");
+        return ApiError.notFound("User not found");
       }
 
       // update user
@@ -269,22 +273,27 @@ class UserController {
       user.department = updates.department || user.department;
       user.updatedAt = new Date();
 
+      // if user want to update his semester
+      if (updates.semester) {
+        user.associations.semesters = updates.semester;
+        user.associations.subjects = [];
+
+        // add all the subjects in that semester
+        const subjects = await Subject.find({
+          semester: updates.semester,
+          course: user.associations.courses[0],
+          session: user.associations.sessions[0],
+          department: user.department,
+        });
+
+        user.associations.subjects = subjects;
+      }
+
       await user.save();
 
-      return new ApiResponse.success(
-        {
-          user: {
-            _id: user._id,
-            fullName: user.fullName,
-            email: user.email,
-            role: user.role,
-            department: user.department,
-          },
-        },
-        "User profile updated successfully"
-      );
+      return ApiResponse.succeed(user, "User profile updated successfully");
     } catch (error) {
-      return new ApiError(StatusCode.INTERNAL_SERVER, error.message);
+      return ApiError.internal(error.message);
     }
   }
 
@@ -475,9 +484,7 @@ class UserController {
         "Faculty members fetched successfully"
       );
     } catch (error) {
-      return ApiError.internal(
-        "Error fetching faculty members: " + error.message
-      );
+      return ApiError.internal(error.message);
     }
   }
 }

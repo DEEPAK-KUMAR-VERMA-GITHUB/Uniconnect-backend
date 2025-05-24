@@ -161,6 +161,7 @@ class DepartmentController {
   async getDepartmentById(request, reply) {
     try {
       const { id } = request.params;
+
       const department = await Department.findById(id);
 
       if (!department) {

@@ -11,6 +11,7 @@ import { userRoutes } from "./routes/user.route.js";
 import { courseRoutes } from "./routes/course.route.js";
 import { sessionRoute } from "./routes/session.route.js";
 import { semesterRoutes } from "./routes/semester.route.js";
+import { resourceRoutes } from "./routes/resource.route.js";
 
 const createServer = async () => {
   const fastify = Fastify({
@@ -38,6 +39,7 @@ const createServer = async () => {
   await fastify.register(sessionRoute, { prefix: "/api/v1/sessions" });
   await fastify.register(semesterRoutes, { prefix: "/api/v1/semesters" });
   await fastify.register(subjectRoute, { prefix: "/api/v1/subjects" });
+  await fastify.register(resourceRoutes, { prefix: "/api/v1/resources" });
 
   fastify.setErrorHandler(errorHandler);
   fastify.setNotFoundHandler(notFound);

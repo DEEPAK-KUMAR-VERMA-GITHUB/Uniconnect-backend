@@ -1,6 +1,6 @@
 import userController from "../controllers/user.controller.js";
 import { isAdmin } from "../middlewares/admin.middleware.js";
-import { auth, handleLogout } from "../middlewares/auth.middleware.js";
+import { auth, handleLogout, handleRefreshToken } from "../middlewares/auth.middleware.js";
 import { cacheMiddleware } from "../middlewares/cache.middleware.js";
 
 export const userRoutes = async (fastify, options) => {
@@ -149,6 +149,7 @@ export const userRoutes = async (fastify, options) => {
     userController.deleteUser
   );
   fastify.post("/logout", { preHandler: [auth] }, handleLogout);
+  fastify.post("/refresh-token",{preHandler:[auth]}, handleRefreshToken)
   fastify.get(
     "/faculty/:departmentId",
     {

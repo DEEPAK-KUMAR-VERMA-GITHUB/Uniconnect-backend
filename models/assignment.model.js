@@ -28,6 +28,20 @@ const AssignmentSchema = mongoose.Schema(
       ref: "Subject",
       required: [true, "Subject is required"],
     },
+    session: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Session",
+      required: [true, "Session is required"],
+    },
+    semester: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Semester",
+      required: [true, "Semester is required"],
+    },
+    file: {
+      type: String,
+      required: [true, "File is required"],
+    },
     submissions: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "AssignmentSolution",
@@ -44,5 +58,13 @@ const AssignmentSchema = mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+// virtuals
+AssignmentSchema.virtual("submissionsCount").get(function () {
+  return this.submissions.length;
+});
+AssignmentSchema.virtual("isActive").get(function () {
+  return this.dueDate > new Date();
+});
 
 export default mongoose.model("Assignment", AssignmentSchema);

@@ -91,7 +91,28 @@ export const subjectRoute = (fastify, options) => {
     { preHandler: [auth, isAdmin] },
     SubjectController.assignFaculty
   );
-  // ================================ Untested Yet ================
+
+  fastify.post(
+    "/:id/add-resource",
+    {
+      preHandler: [auth],
+    },
+    SubjectController.addResource
+  );
+
+  fastify.post(
+    "/:subjectId/add-assignment",
+    {
+      preHandler: [auth, isFaculty],
+    },
+    SubjectController.addAssignment
+  );
+
+  fastify.delete(
+    "/:subjectId/remove-assignment/:assignmentId",
+    { preHandler: [auth, isFaculty] },
+    SubjectController.removeAssignment
+  );
 
   fastify.get("/:id", { preHandler: [auth] }, SubjectController.getSubjectById);
 
@@ -101,11 +122,17 @@ export const subjectRoute = (fastify, options) => {
     SubjectController.getSubjectResources
   );
 
-  fastify.post(
-    "/:id/add-resource",
+  fastify.delete(
+    "/:subjectId/remove-resource/:resourceId",
+    { preHandler: [auth] },
+    SubjectController.removeResource
+  );
+
+  fastify.get(
+    "/faculty/:facultyId",
     {
-      preHandler: [auth],
+      preHandler: [auth, isFaculty],
     },
-    SubjectController.addResource
+    SubjectController.getFacultySubjects
   );
 };

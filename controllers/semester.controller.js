@@ -86,7 +86,7 @@ class SemesterController {
         );
         await oldSession.save();
 
-        const newSession = await Session.findById(sessionId);
+        const newSession = await sessionModel.findById(sessionId);
         newSession.semesters.push(newSemester._id);
         await newSession.save();
       }
@@ -120,7 +120,27 @@ class SemesterController {
         return ApiError.conflict("Subject already added");
       }
 
+      // get all subjects and add semester, session in subject
+      const subjects = await subjectModel.find({ _id: { $in: subjectIds } });
+      subjects.forEach(async (subject) => {
+        subject.semester = semester._id;
+        subject.session = semester.session;
+        await subject.save();
+      });
+
       semester.subjects.push(...subjectIds);
+
+      // add subject to all the students in that semester
+      const students = await userModel.find({
+        role: "student",
+        semester: semester._id,
+      });
+
+      students.forEach(async (student) => {
+        student.associations.subjects.push(...subjectIds);
+        await student.save();
+      });
+
       await semester.save();
       return ApiResponse.succeed(semester, "Subject added successfully");
     } catch (error) {
@@ -129,7 +149,7 @@ class SemesterController {
   }
 
   /**
-   * @route Delete /api/v1/semester/:semesterID/remove-subject
+   * @route Delete /api/v1/semester/:semesterID/remove-subject/:subjectId
    * @description Remove a subject from semester
    * @access Private
    * @param {string} semeesterId - The ID of the semester
@@ -151,7 +171,24 @@ class SemesterController {
         return ApiError.notFound("Subject not found in semester");
       }
 
+      // remove subject from all the students in that semester
+      const students = await userModel.find({
+        role: "student",
+        semester: semester._id,
+      });
+
+      students.forEach(async (student) => {
+        student.associations.subjects.pull(subjectId);
+        await student.save();
+      });
+
       semester.subjects.pull(subjectId);
+
+      // remove subject from subject.semesters
+      const subject = await subjectModel.findById(subjectId);
+      subject.semester = null;
+      await subject.save();
+
       await semester.save();
 
       return ApiResponse.succeed(semester, "Subject removed successfully");
@@ -306,6 +343,93 @@ class SemesterController {
       return ApiResponse.succeed(subjectsResult, "Subjects found successfully");
     } catch (error) {
       return ApiError.internal("Error in getting subjects" + error.message);
+    }
+  }
+
+  /**
+   * @route PATCH /api/v1/semester/:semesterId/change-status
+   * @description Change the status of a semester
+   * @access Private
+   * @param {string} semesterId - The ID of the semester
+   * @returns {object} - The updated semester
+   */
+  async changeStatus(request, reply) {
+    const { semesterId } = request.params;
+    const { status } = request.body;
+    try {
+      const semester = await semesterModel.findById(semesterId);
+
+      if (!semester) {
+        return ApiError.notFound("Semester not found or invalid semester id");
+      }
+
+      // check if current session has any other active semester
+      const session = await sessionModel.findById(semester.session);
+      if (session.currentSemester) {
+        return ApiError.conflict("Current session has an active semester");
+      }
+
+      // check if status is valid
+      if (
+        status !== "active" &&
+        status !== "upcomming" &&
+        status !== "completed"
+      ) {
+        return ApiError.badRequest("Invalid status");
+      }
+
+      // check if status is active and current date is between start and end date
+      if (
+        status === "active" &&
+        new Date() < new Date(semester.startDate) &&
+        new Date() > new Date(semester.endDate)
+      ) {
+        return ApiError.badRequest("Semester is not active");
+      }
+
+      // check if status is upcomming and current date is before start date
+      if (status === "upcomming" && new Date() < new Date(semester.startDate)) {
+        return ApiError.badRequest("Semester is not upcomming");
+      }
+
+      // check if status is completed and current date is after end date
+      if (status === "completed" && new Date() > new Date(semester.endDate)) {
+        return ApiError.badRequest("Semester is not completed");
+      }
+
+      // if status is active, then set current semester to this semester
+      if (status === "active") {
+        session.currentSemester = semester._id;
+        await session.save();
+      }
+
+      // if status is completed, then set current semester to null
+      else if (status === "completed") {
+        session.currentSemester = null;
+
+        // remove subject from all the students in that semester
+        const students = await userModel.find({
+          role: "student",
+          semester: semester._id,
+        });
+
+        students.forEach(async (student) => {
+          student.associations.subjects.pull(subjectId);
+          await student.save();
+        });
+
+        await session.save();
+      }
+
+      semester.status = status;
+      await semester.save();
+
+      return ApiResponse.succeed(
+        semester,
+        "Semester status updated successfully"
+      );
+    } catch (error) {
+      return ApiError.internal(error.message);
     }
   }
 }

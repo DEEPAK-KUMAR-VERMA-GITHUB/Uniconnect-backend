@@ -83,7 +83,7 @@ export const sessionRoute = (fastify, options) => {
   );
   fastify.get(
     "/get-sessions/:courseId",
-    { preHandler: [auth, cacheMiddleware("sessions")] },
+    { preHandler: [cacheMiddleware("sessions")] },
     sessionController.getSessions
   );
   fastify.put(

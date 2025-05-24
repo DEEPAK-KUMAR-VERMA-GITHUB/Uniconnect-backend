@@ -42,6 +42,19 @@ export const auth = async (request, reply) => {
   try {
     // get token from cookies
     const { accessToken } = request.cookies;
+    // console.log("AT", request.cookies.refreshToken);
+
+    // console.log("AH", request.headers);
+
+    // If not in cookies, check Authorization header
+    if (!accessToken && request.headers.authorization) {
+      const authHeader = request.headers.authorization;
+      if (authHeader.startsWith("Bearer ")) {
+        accessToken = authHeader.substring(7);
+      }
+      // console.log("RT", authHeader);
+    }
+    // console.log("here1");
 
     if (!accessToken) {
       return reply.code(StatusCode.UNAUTHORIZED).send({
@@ -50,10 +63,13 @@ export const auth = async (request, reply) => {
       });
     }
 
+    // console.log("here2");
     try {
       const decoded = jwt.verify(accessToken, config.jwt.accessSecret);
+      // console.log("decoded", decoded);
 
       const user = await User.findById(decoded.id);
+      // console.log("user", user);
 
       if (!user || user.isBlocked) {
         return reply.code(StatusCode.UNAUTHORIZED).send({
@@ -63,8 +79,11 @@ export const auth = async (request, reply) => {
       }
 
       request.user = user;
+
       return;
     } catch (error) {
+      // console.log(error);
+
       if (error.name === "TokenExpiredError") {
         return await refreshTokenAndContinue(request, reply);
       }
@@ -131,6 +150,12 @@ export const refreshTokenAndContinue = async (request, reply) => {
 export const handleRefreshToken = async (request, reply) => {
   try {
     const { refreshToken } = request.cookies;
+    const { deviceId } = request.body;
+
+    // If not in cookies, check request body
+    if (!refreshToken && request.body.refreshToken) {
+      refreshToken = request.body.refreshToken;
+    }
 
     if (!refreshToken) {
       return reply.code(401).send({
@@ -150,11 +175,18 @@ export const handleRefreshToken = async (request, reply) => {
 
     // Generate new tokens and set cookies
     const tokens = await generateTokensAndSetCookies(user, reply);
+    // Update device info if provided
+    if (deviceId) {
+      user.device = deviceId;
+      await user.save();
+    }
 
     return reply.code(200).send({
       success: true,
+      user,
       message: "Tokens refreshed successfully",
       accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     });
   } catch (error) {
     // Clear cookies on error
@@ -175,6 +207,9 @@ export const handleRefreshToken = async (request, reply) => {
 export const handleLogout = async (request, reply) => {
   try {
     // Increment token version to invalidate all refresh tokens
+
+    const { deviceId } = request.body;
+
     if (request.user) {
       await User.findByIdAndUpdate(request.user._id, {
         $inc: { tokenVersion: 1 },
@@ -202,8 +237,7 @@ export const handleLogout = async (request, reply) => {
     request.log.error(error);
     return reply.code(500).send({
       success: false,
-      message: "Error during logout",
-      error: error.message,
+      message: error.message,
     });
   }
 };

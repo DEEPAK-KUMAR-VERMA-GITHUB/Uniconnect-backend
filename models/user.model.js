@@ -182,26 +182,11 @@ const userSchema = new mongoose.Schema(
     },
 
     // Faculty-specific arrays
-    teachingAssignments: [
-      {
-        course: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Course",
-        },
-        session: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Session",
-        },
-        semester: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Semester",
-        },
-        subject: {
-          type: mongoose.Schema.Types.ObjectId,
-          ref: "Subject",
-        },
-      },
-    ],
+    teachingAssignments: {
+      assignments: [],
+      notes: [],
+      pyqs: [],
+    },
 
     // Status and security fields
     isVerified: {
@@ -233,16 +218,7 @@ const userSchema = new mongoose.Schema(
       lockUntil: { type: Date },
     },
 
-    device: {
-      deviceToken: {
-        type: String,
-        default: null,
-      },
-      platform: {
-        type: String,
-        default: null,
-      },
-    },
+    deviceToken: String,
 
     // Timestamps
     createdAt: {

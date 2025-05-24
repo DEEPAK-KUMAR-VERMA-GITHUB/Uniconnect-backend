@@ -39,8 +39,8 @@ const semesterSchema = new mongoose.Schema({
   subjects: [{ type: mongoose.Schema.ObjectId, ref: "Subject" }],
   status: {
     type: String,
-    enum: ["active", "completed"],
-    default: "active",
+    enum: ["active", "upcomming", "completed"],
+    default: "upcomming",
   },
 });
 

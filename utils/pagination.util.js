@@ -12,7 +12,7 @@ export const paginateResult = async (
   query,
   populate = [],
   page = 1,
-  limit = 10,
+  limit = 100,
   sort = {}
 ) => {
   const skip = (page - 1) * limit;

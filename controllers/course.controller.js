@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import cacheService from "../services/cache.service.js";
 import { paginateResult } from "./../utils/pagination.util.js";
 import { ApiError } from "../utils/apiError.js";
+import Session from "../models/session.model.js";
 
 class CourseController {
   /**
@@ -87,6 +88,7 @@ class CourseController {
         department = "",
         type = "",
         duration = "",
+        status = "",
         sortBy = "createdAt",
         sortOrder = "desc",
       } = request.query;
@@ -102,6 +104,7 @@ class CourseController {
       if (department) query.department = department;
       if (type) query.type = type;
       if (duration) query.duration = duration;
+      if (status) query.status = status;
 
       // Execute query using paginateResult
       const result = await paginateResult(
@@ -293,7 +296,7 @@ class CourseController {
 
       return ApiResponse.succeed(course, "Course deleted successfully");
     } catch (error) {
-      return ApiError.internal("Error in deleting course :" + error.message);
+      return ApiError.internal(error.message);
     }
   }
 }

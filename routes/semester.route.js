@@ -93,7 +93,7 @@ export const semesterRoutes = async (fastify, options) => {
     "/get-all-semesters/:sessionId",
     {
       schema: semesterSchema.getAll,
-      preHandler: [auth, isAdmin, cacheMiddleware("semesters")],
+      preHandler: [cacheMiddleware("semesters")],
     },
     SemesterController.getAllSemesters
   );
@@ -114,7 +114,7 @@ export const semesterRoutes = async (fastify, options) => {
     SemesterController.addSubjects
   );
   fastify.delete(
-    ":semesterId/remove-subject/:subjectId",
+    "/:semesterId/remove-subject/:subjectId",
     {
       preHandler: [auth, isAdmin],
     },
@@ -126,5 +126,12 @@ export const semesterRoutes = async (fastify, options) => {
       preHandler: [auth, isAdmin, cacheMiddleware("subjects")],
     },
     SemesterController.getAllSubjects
+  );
+  fastify.patch(
+    "/:semesterId/change-status",
+    {
+      preHandler: [auth, isAdmin],
+    },
+    SemesterController.changeStatus
   );
 };

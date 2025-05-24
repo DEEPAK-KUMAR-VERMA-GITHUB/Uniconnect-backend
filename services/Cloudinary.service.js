@@ -61,8 +61,6 @@ class Cloudinary {
       return ApiError.internal("Error getting file from cloudinary", error);
     }
   }
-
-
 }
 
 export default new Cloudinary();
