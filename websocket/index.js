@@ -1,11 +1,12 @@
 import { WebSocketServer } from "ws";
+import { notificationHandler } from "./notificationHandler.js"; // Fix the capitalization
 
 export class WebSocketService {
   constructor(server) {
-    this.wss = new WebSocketServer({ server });
+    this.wss = new WebSocketServer({ server }); // Initialize WebSocketServer
     this.clients = new Map();
 
-    this.wss.on("connection", this.handleConnection);
+    this.wss.on("connection", this.handleConnection.bind(this));
   }
 
   handleConnection(ws, req) {
@@ -13,15 +14,22 @@ export class WebSocketService {
     ws.on("pong", () => {
       ws.isAlive = true;
     });
-    ws.on("message", this.handleMessage.bind(this, ws));
+    ws.on("message", (message) => {
+      try {
+        const data = JSON.parse(message.toString());
+        this.handleMessage(ws, data);
+      } catch (error) {
+        ws.send(JSON.stringify({ error: "Invalid message format" }));
+      }
+    });
     ws.on("close", () => this.handleClose(ws));
   }
 
-  handleMessage(ws, message) {
-    const data = JSON.parse(message);
+  handleMessage(ws, data) {
     switch (data.type) {
       case "register":
         this.clients.set(data.userId, ws);
+        ws.send(JSON.stringify({ type: "register", success: true }));
         break;
       case "unregister":
         this.clients.delete(data.userId);
@@ -33,13 +41,20 @@ export class WebSocketService {
         }
         break;
       case "notification":
-        notificationhandler(ws, data, this.clients);
-        break;
-      case "resource":
-        resourceHandler(ws, data, this.clients);
+        notificationHandler(ws, data, this.clients);
         break;
       default:
         ws.send(JSON.stringify({ error: "Unknown message type" }));
+    }
+  }
+
+  handleClose(ws) {
+    // Remove client from the map
+    for (const [userId, client] of this.clients.entries()) {
+      if (client === ws) {
+        this.clients.delete(userId);
+        break;
+      }
     }
   }
 

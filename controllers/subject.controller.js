@@ -306,10 +306,10 @@ class SubjectController {
       // Remove existing faculty if any
       if (subject.faculty) {
         const existingFaculty = await User.findById(subject.faculty);
-        if (existingFaculty._id === subject.faculty) {
+        if (existingFaculty.id.toString() === subject.faculty.toString()) {
           return ApiError.conflict("Subject already assigned to this faculty");
         } else {
-          existingFaculty.associations.subjects.pull(subject._id);
+          existingFaculty.associations.subjects.pull(subject.id);
           await existingFaculty.save();
         }
       }
@@ -318,13 +318,25 @@ class SubjectController {
 
       faculty.associations.courses.push(subject.course);
       faculty.associations.sessions.push(subject.session);
-      faculty.associations.subjects.push(subject._id);
+      faculty.associations.subjects.push(id);
       subject.faculty = facultyId;
 
-      await subject.save();
+      const updatedSubject = await Subject.findOneAndUpdate(
+        { _id: id, status: "ACTIVE" },
+        {
+          $set: {
+            faculty: facultyId,
+          },
+        },
+        { new: true }
+      );
+
       await faculty.save();
 
-      return ApiResponse.succeed(subject, "Faculty assigned successfully");
+      return ApiResponse.succeed(
+        updatedSubject,
+        "Faculty assigned successfully"
+      );
     } catch (error) {
       return ApiError.internal(error.message);
     }
@@ -367,18 +379,80 @@ class SubjectController {
   async getSubjectResources(request, reply) {
     try {
       const { id } = request.params;
+      const { facultyId } = request.query;
 
-      const subject = await Subject.findById(id)
-        .populate("resources")
-        .populate("assignments");
+      let subject;
+
+      if (facultyId) {
+        subject = await Subject.findById(id).populate({
+          path: "resources",
+          match: { uploadedBy: facultyId },
+          populate: {
+            path: "uploadedBy",
+            select: "fullName email profilePic",
+          },
+        });
+      } else {
+        subject = await Subject.findById(id).populate({
+          path: "resources",
+          populate: {
+            path: "uploadedBy",
+            select: "fullName email profilePic",
+          },
+        });
+      }
 
       if (!subject) {
         return ApiError.notFound("Subject not found or Invalid Subject ID");
       }
 
       return ApiResponse.succeed(
-        { resources: subject.resources, assignments: subject.assignments },
+        { resources: subject.resources },
         "Resources fetched successfully"
+      );
+    } catch (error) {
+      return ApiError.internal(error.message);
+    }
+  }
+
+  /**
+   * @route GET
+   * @access private
+   */
+
+  async getSubjectAssignments(request, reply) {
+    try {
+      const { id } = request.params;
+      const { facultyId } = request.query;
+
+      let subject;
+
+      if (facultyId) {
+        subject = await Subject.findById(id).populate({
+          path: "assignments",
+          match: { assignedBy: facultyId },
+          populate: {
+            path: "assignedBy",
+            select: "fullName email profilePic",
+          },
+        });
+      } else {
+        subject = await Subject.findById(id).populate({
+          path: "assignments",
+          populate: {
+            path: "assignedBy",
+            select: "fullName email profilePic",
+          },
+        });
+      }
+
+      if (!subject) {
+        return ApiError.notFound("Subject not found or Invalid Subject ID");
+      }
+
+      return ApiResponse.succeed(
+        { assignments: subject.assignments },
+        "Assignments fetched successfully"
       );
     } catch (error) {
       return ApiError.internal(error.message);
@@ -415,17 +489,17 @@ class SubjectController {
         type: type.value,
         year: year?.value,
         fileUrl: url,
-        uploadedBy: request.user._id,
-        subject: subject._id,
+        uploadedBy: request.user.id,
+        subject: subject.id,
       });
 
       // add newly created resource to subject
-      subject.resources.push(resource._id);
+      subject.resources.push(resource.id);
       await subject.save();
 
       // add resources to associate users which contains that subject
       const users = await User.find({
-        "associations.subjects": subject._id,
+        "associations.subjects": subject.id,
       });
 
       if (resource.type === "note") {
@@ -476,21 +550,21 @@ class SubjectController {
 
       const assignment = await Assignment.create({
         title: title.value,
-        dueDate,
+        dueDate: dueDate.value,
         file: url,
-        subject: subject._id,
-        assignedBy: request.user._id,
+        subject: subject.id,
+        assignedBy: request.user.id,
         session: subject.session,
         semester: subject.semester,
       });
 
       // add newly created assignment to subject
-      subject.assignments.push(assignment._id);
+      subject.assignments.push(assignment.id);
       await subject.save();
 
       // add assignment to associate users which contains that subject
       const users = await User.find({
-        "associations.subjects": subject._id,
+        "associations.subjects": subject.id,
       });
 
       users.forEach(async (user) => {
@@ -573,10 +647,9 @@ class SubjectController {
    */
   async removeAssignment(request, reply) {
     try {
-      const { id } = request.params;
-      const { assignmentId } = request.body;
+      const { subjectId, assignmentId } = request.params;
 
-      const subject = await Subject.findById(id);
+      const subject = await Subject.findById(subjectId);
       if (!subject) {
         return ApiError.notFound("Subject not found or Invalid Subject ID");
       }
@@ -614,7 +687,7 @@ class SubjectController {
       // Remove the assignment from the database
       await Assignment.findByIdAndDelete({ _id: assignmentId });
 
-      return ApiResponse.succeed({}, "Assignment removed successfully");
+      return ApiResponse.succeed(null, "Assignment removed successfully");
     } catch (error) {
       return ApiError.internal(error.message);
     }
@@ -644,7 +717,7 @@ class SubjectController {
         })
         .populate({
           path: "assignments",
-          select: "title dueDate file assignedBy submissions",
+          select: "title dueDate file assignedBy submissions assignedAt status",
           populate: [
             {
               path: "assignedBy",

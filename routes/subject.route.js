@@ -122,6 +122,12 @@ export const subjectRoute = (fastify, options) => {
     SubjectController.getSubjectResources
   );
 
+  fastify.get(
+    "/:id/assignments",
+    { preHandler: [auth] },
+    SubjectController.getSubjectAssignments
+  );
+
   fastify.delete(
     "/:subjectId/remove-resource/:resourceId",
     { preHandler: [auth] },

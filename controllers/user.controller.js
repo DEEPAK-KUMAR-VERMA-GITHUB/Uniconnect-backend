@@ -14,6 +14,8 @@ import { ApiError } from "../utils/apiError.js";
 import Session from "../models/session.model.js";
 import Semester from "../models/semester.model.js";
 import Subject from "../models/subject.model.js";
+import resourceModel from "../models/resource.model.js";
+import assignmentModel from "../models/assignment.model.js";
 
 class UserController {
   /**
@@ -59,8 +61,7 @@ class UserController {
       let subjects = [];
 
       // validate if that course exists in that department or not
-      if (role === ROLES.STUDENT) {
-        // add all the subjects in that semester
+      if (role === "student") {
         const isSemesterActive = await Semester.findOne({
           _id: semester,
           status: "active",
@@ -70,11 +71,8 @@ class UserController {
         }
 
         // add all the subjects in that semester
-        const subjects = await Subject.find({
+        subjects = await Subject.find({
           semester: semester,
-          course: course,
-          session: session,
-          department: department,
         });
       }
 
@@ -86,19 +84,6 @@ class UserController {
         phoneNumber,
         role,
         department,
-        associations: {
-          course,
-          session,
-          semester,
-          subjects,
-        },
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        lastLogin: new Date(),
-        loginAttempts: {
-          count: 0,
-          lastAttempt: null,
-        },
       };
 
       // add role specific fields
@@ -118,6 +103,14 @@ class UserController {
       }
 
       const user = await User.create(userData);
+      console.log(user);
+
+      user.associations.courses.push(course);
+      user.associations.sessions.push(session);
+      user.associations.semesters.push(semester);
+      user.associations.subjects = subjects;
+
+      await user.save();
 
       // send registration email
       await mailService.sendMail(
@@ -215,19 +208,68 @@ class UserController {
 
   async getUserProfile(request, reply) {
     try {
-      // console.log('here1');
-
+      // First get the user with basic population
       const user = await User.findById(request.user._id)
         .populate("department", "name")
         .populate("associations.courses")
         .populate("associations.sessions")
         .populate("associations.semesters")
-        .populate("associations.subjects")
-        .populate("teachingAssignments");
+        .populate("associations.subjects");
 
-      // console.log('here2', user);
       if (!user) {
         return new ApiError(StatusCode.NOT_FOUND, "User not found");
+      }
+
+      // Now fetch the complete details for teaching assignments
+      if (user.teachingAssignments) {
+        // Fetch notes details
+        if (
+          user.teachingAssignments.notes &&
+          user.teachingAssignments.notes.length > 0
+        ) {
+          const notes = await resourceModel
+            .find({
+              _id: { $in: user.teachingAssignments.notes },
+            })
+            .populate("subject", "name code")
+            .select("title fileUrl updatedAt type")
+            .sort({ updatedAt: -1 })
+            .limit(3);
+          user.teachingAssignments.notes = notes;
+        }
+
+        // Fetch assignments details
+        if (
+          user.teachingAssignments.assignments &&
+          user.teachingAssignments.assignments.length > 0
+        ) {
+          const assignments = await assignmentModel
+            .find({
+              _id: { $in: user.teachingAssignments.assignments },
+            })
+            .populate("subject", "name code")
+            .select("title file assignedAt dueDate status")
+            .sort({ dueDate: -1 })
+            .limit(3);
+
+          user.teachingAssignments.assignments = assignments;
+        }
+
+        // Fetch PYQs details
+        if (
+          user.teachingAssignments.pyqs &&
+          user.teachingAssignments.pyqs.length > 0
+        ) {
+          const pyqs = await resourceModel
+            .find({
+              _id: { $in: user.teachingAssignments.pyqs },
+            })
+            .populate("subject", "name code")
+            .select("title fileUrl type year updatedAt")
+            .sort({ updatedAt: -1 })
+            .limit(3);
+          user.teachingAssignments.pyqs = pyqs;
+        }
       }
 
       return ApiResponse.succeed(user, "User profile fetched successfully");

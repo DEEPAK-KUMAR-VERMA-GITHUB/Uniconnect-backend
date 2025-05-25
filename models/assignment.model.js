@@ -51,20 +51,19 @@ const AssignmentSchema = mongoose.Schema(
       ref: "User",
       required: [true, "Assigned by is required"],
     },
+    assignedAt: {
+      type: Date,
+      default: Date.now,
+    },
+    status: {
+      type: String,
+      enum: ["pending", "submitted", "graded"],
+      default: "pending",
+    },
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
-
-// virtuals
-AssignmentSchema.virtual("submissionsCount").get(function () {
-  return this.submissions.length;
-});
-AssignmentSchema.virtual("isActive").get(function () {
-  return this.dueDate > new Date();
-});
 
 export default mongoose.model("Assignment", AssignmentSchema);

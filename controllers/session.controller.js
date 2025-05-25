@@ -78,6 +78,7 @@ class SessionController {
       // get all sessions of course
       const sessions = await paginateResult(Session, { course: courseId }, [
         { path: "course", select: "name duration" },
+        { path: "currentSemester", select: "semesterName" },
       ]);
 
       return ApiResponse.succeed(sessions, "Sessions fetched successfully");

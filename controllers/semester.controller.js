@@ -4,6 +4,7 @@ import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { paginateResult } from "./../utils/pagination.util.js";
 import subjectModel from "../models/subject.model.js";
+import userModel from "../models/user.model.js";
 
 class SemesterController {
   /**

@@ -14,7 +14,7 @@ export const blockedEmailTemplate = (user, reason) => {
           <!-- Header with Logo -->
           <tr>
             <td style="text-align:center; padding:20px; background:#d9534f;">
-              <img src="https://res.cloudinary.com/uniconnect/image/upload/f_auto,q_auto/v1/uniconnect/images/b38bfbf1c2aca1a1ec725f67249ac0f2" alt="University Logo" width="120" style="display:block; margin:0 auto;">
+              <img src="https://res.cloudinary.com/uniconnect/image/upload/v1748062370/uniconnect_logo_x7grei.png" alt="University Logo" width="120" style="display:block; margin:0 auto;">
             </td>
           </tr>
           <!-- Greeting -->
@@ -51,10 +51,10 @@ export const blockedEmailTemplate = (user, reason) => {
           <tr>
             <td style="background:#f1f4f8; padding:20px 40px; text-align:center; font-family:Arial, sans-serif; font-size:12px; color:#6C757D;">
               <p style="margin:0 0 10px;">Connect with us:</p>
-              <a href="https://gnsu.ac.in/" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/f_auto,q_auto/v1/uniconnect/images/eef835e665ab4c33e663fc97654bf9b8" alt="Website" width="24"></a>
-              <a href="https://www.facebook.com/GNSUniversity/" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/f_auto,q_auto/v1/uniconnect/images/61a96c78b48018b48fbb6254a93b93f8" alt="Facebook" width="24"></a>
-              <a href="https://www.x.com/GnsUniversity_" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/f_auto,q_auto/v1/uniconnect/images/3e8e7ee8666a9f4e2946f39ff2f806e3" alt="Twitter" width="24"></a>
-              <a href="https://www.linkedin.com/in/gnsu/" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/f_auto,q_auto/v1/uniconnect/images/d492efc706db983e74258dbd348f2208" alt="LinkedIn" width="24"></a>
+              <a href="https://gnsu.ac.in/" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/v1748062280/world-wide-web_ye5gci.png" alt="Website" width="24"></a>
+              <a href="https://www.facebook.com/GNSUniversity/" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/v1748062280/facebook_zasvpu.png" alt="Facebook" width="24"></a>
+              <a href="https://www.x.com/GnsUniversity_" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/v1748062280/twitter_nwyrmg.png" alt="Twitter" width="24"></a>
+              <a href="https://www.linkedin.com/in/gnsu/" style="margin:0 5px;"><img src="https://res.cloudinary.com/uniconnect/image/upload/v1748062280/linkedin_xemuzt.png" alt="LinkedIn" width="24"></a>
               <p style="margin:15px 0 0;">&copy; ${new Date().getFullYear()} Uniconnect. All rights reserved.</p>
             </td>
           </tr>

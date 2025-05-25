@@ -49,7 +49,16 @@ const resourceSchema = new mongoose.Schema(
         return this.type === "pyq" ? new Date().getFullYear() : undefined;
       },
     },
+    createdAt: {
+      type: Date,
+      default: Date.now,
+    },
+    updatedAt: {
+      type: Date,
+      default: Date.now,
+    },
   },
+
   { timestamp: true }
 );
 

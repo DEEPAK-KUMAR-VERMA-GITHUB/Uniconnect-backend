@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
       validate: {
         validator: function (password) {
           const passwordRegex =
-            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+            /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?])[A-Za-z\d!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]{8,}$/;
           return passwordRegex.test(password);
         },
         message:
@@ -138,7 +138,7 @@ const userSchema = new mongoose.Schema(
           validate: {
             validator: function (courses) {
               if (this.role !== "student") return true;
-              return courses.length <= 1;
+              return this.associations.courses.length <= 1;
             },
             message: "Students can only be associated with one course",
           },
@@ -152,9 +152,9 @@ const userSchema = new mongoose.Schema(
           validate: {
             validator: function (sessions) {
               if (this.role !== "student") return true;
-              return sessions.length <= 1;
+              return this.associations.sessions.length <= 1;
             },
-            message: "Students can only be associated with one course",
+            message: "Students can only be associated with one session",
           },
         },
       ],
@@ -166,9 +166,9 @@ const userSchema = new mongoose.Schema(
           validate: {
             validator: function (semesters) {
               if (this.role !== "student") return true;
-              return semesters.length <= 1;
+              return this.associations.semesters.length <= 1;
             },
-            message: "Students can only be associated with one course",
+            message: "Students can only be associated with one semester",
           },
         },
       ],
