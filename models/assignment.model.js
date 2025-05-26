@@ -42,10 +42,12 @@ const AssignmentSchema = mongoose.Schema(
       type: String,
       required: [true, "File is required"],
     },
-    submissions: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "AssignmentSolution",
-    },
+    submissions: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "AssignmentSolution",
+      },
+    ],
     assignedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

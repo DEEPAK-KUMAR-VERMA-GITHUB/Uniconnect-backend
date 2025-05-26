@@ -15,6 +15,7 @@ import { resourceRoutes } from "./routes/resource.route.js";
 import { notificationRoutes } from "./routes/notification.routes.js";
 import fastifyWebsocket from "@fastify/websocket";
 import { WebSocketService } from "./websocket/index.js";
+import { assignmentRoutes } from "./routes/assignment.route.js";
 
 const createServer = async () => {
   const fastify = Fastify({
@@ -90,6 +91,9 @@ const createServer = async () => {
   await fastify.register(resourceRoutes, { prefix: "/api/v1/resources" });
   await fastify.register(notificationRoutes, {
     prefix: "/api/v1/notifications",
+  });
+  await fastify.register(assignmentRoutes, {
+    prefix: "/api/v1/assignments",
   });
 
   fastify.setErrorHandler(errorHandler);

@@ -102,8 +102,7 @@ class UserController {
         userData.rollNumber = rollNumber;
       }
 
-      const user = await User.create(userData);
-      console.log(user);
+      const user = new User(userData);
 
       user.associations.courses.push(course);
       user.associations.sessions.push(session);

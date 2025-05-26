@@ -723,14 +723,6 @@ class SubjectController {
               path: "assignedBy",
               select: "fullName email profilePic",
             },
-            {
-              path: "submissions",
-              select: "submittedBy submittedAt fileUrl grade feedback",
-              populate: {
-                path: "submittedBy",
-                select: "fullName email profilePic",
-              },
-            },
           ],
         })
         .select("name code status");
