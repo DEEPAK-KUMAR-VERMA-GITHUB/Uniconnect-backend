@@ -246,6 +246,7 @@ class UserController {
             .find({
               _id: { $in: user.teachingAssignments.assignments },
             })
+            .populate("submissions", "student")
             .populate("subject", "name code")
             .select("title file assignedAt dueDate status")
             .sort({ dueDate: -1 })

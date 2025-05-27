@@ -18,4 +18,11 @@ export const assignmentRoutes = (fastify, options) => {
     },
     AssignmentController.getAssignmentSubmissions
   );
+  fastify.get(
+    "/student-submissions",
+    {
+      preHandler: [auth, cacheMiddleware("student-submissions")],
+    },
+    AssignmentController.getStudentSubmissions
+  );
 };

@@ -81,6 +81,32 @@ class AssignmentController {
       return ApiError.internal(error.message);
     }
   }
+
+  /**
+   * Get all submissions made by the current student
+   * @route GET /assignments/student-submissions
+   * @access Private (Student only)
+   */
+
+  async getStudentSubmissions(req, res) {
+    try {
+      // Get the student ID from the authenticated user
+      const studentId = req.user._id;
+
+      // Find all submissions by this student
+      const submissions = await assignmentSolutionModel
+        .find({ student: studentId })
+        .populate("assignment", "title dueDate")
+        .select("assignment fileUrl updatedAt");
+
+      return ApiResponse.succeed(
+        submissions,
+        "Submissions fetched successfully"
+      );
+    } catch (error) {
+      return ApiError.internal(error.message);
+    }
+  }
 }
 
 export default new AssignmentController();
